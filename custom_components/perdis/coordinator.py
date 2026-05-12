@@ -38,8 +38,9 @@ class PerdisCoordinator(DataUpdateCoordinator):
         self.username    = username
         self.password    = password
         self.roster_url  = f"{self.base_url}/roster.aspx"
-        self.planbals_url = f"{self.base_url}/planbals.aspx"
-        self.balances_url = f"{self.base_url}/balances.aspx"
+        self.planbals_url  = f"{self.base_url}/planbals.aspx"
+        self.balances_url  = f"{self.base_url}/balances.aspx"
+        self.messages_url  = f"{self.base_url}/messages.aspx"
 
         super().__init__(
             hass,
@@ -85,7 +86,10 @@ class PerdisCoordinator(DataUpdateCoordinator):
         # Balances laden
         balances = self._fetch_balances(session)
 
-        return {"shifts": unique, "balances": balances}
+        # Nachrichten laden
+        message = self._fetch_latest_message(session)
+
+        return {"shifts": unique, "balances": balances, "message": message}
 
     def _login(self, session: requests.Session) -> None:
         """ASP.NET Login mit Cookie-Redirect-Flow."""
@@ -185,6 +189,43 @@ class PerdisCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Perdis: Fehler beim Laden der Balances: %s", err)
 
         return balances
+
+    def _fetch_latest_message(self, session: requests.Session) -> dict:
+        """Liest die neueste Nachricht von messages.aspx."""
+        result = {}
+        try:
+            r = session.get(self.messages_url, headers=HEADERS, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+
+            # Header: "1/23 Gesendet von LASZINO am 28.04.2026"
+            header = soup.find(id=re.compile("lblSubHeader"))
+            if header:
+                result["header"] = header.get_text(strip=True)
+
+            # Betreff
+            betreff = soup.find(id=re.compile("lblBetreffText"))
+            if betreff:
+                text = betreff.get_text(strip=True)
+                result["betreff"] = text.replace("Betreff :", "").strip()
+
+            # Nachrichtentext
+            msg_text = soup.find(id=re.compile("lblMessageText"))
+            if msg_text:
+                result["text"] = msg_text.get_text(separator=" ", strip=True)
+
+            # Gesamtanzahl aus Header parsen: "23/23"
+            if result.get("header"):
+                import re as re2
+                m = re2.search(r"(\d+)/(\d+)", result["header"])
+                if m:
+                    result["current"] = int(m.group(1))
+                    result["total"]   = int(m.group(2))
+
+            _LOGGER.info("Perdis Nachricht geladen: %s", result.get("betreff", ""))
+        except Exception as err:
+            _LOGGER.warning("Perdis: Fehler beim Laden der Nachrichten: %s", err)
+
+        return result
 
     def _parse_days(self, val: str) -> float | None:
         """Parst Tageswerte wie '24,00' oder '24.00'."""

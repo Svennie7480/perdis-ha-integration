@@ -16,6 +16,38 @@ from .coordinator import PerdisCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
+class PerdisMessageSensor(CoordinatorEntity, SensorEntity):
+    """Sensor für die neueste Perdis Nachricht."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:message-text"
+
+    def __init__(self, coordinator: PerdisCoordinator, entry: ConfigEntry, key: str, label: str) -> None:
+        super().__init__(coordinator)
+        self._key = key
+        self._attr_name = label
+        self._attr_unique_id = f"{entry.entry_id}_msg_{key}"
+
+    @property
+    def native_value(self):
+        if not self.coordinator.data:
+            return None
+        msg = self.coordinator.data.get("message", {})
+        return msg.get(self._key)
+
+    @property
+    def extra_state_attributes(self):
+        if not self.coordinator.data:
+            return {}
+        msg = self.coordinator.data.get("message", {})
+        return {
+            "betreff": msg.get("betreff", ""),
+            "text":    msg.get("text", ""),
+            "header":  msg.get("header", ""),
+            "total":   msg.get("total", 0),
+        }
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -46,6 +78,10 @@ async def async_setup_entry(
         ("urlaubsaufschlag",   "Urlaubsaufschlag"),
     ]:
         entities.append(PerdisSensor(coordinator, entry, key, label, "h", "mdi:clock-outline"))
+
+    # Nachrichten-Sensoren
+    entities.append(PerdisMessageSensor(coordinator, entry, "betreff", "Letzte Nachricht Betreff"))
+    entities.append(PerdisMessageSensor(coordinator, entry, "total",   "Nachrichten Anzahl"))
 
     async_add_entities(entities)
 

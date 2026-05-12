@@ -13,7 +13,7 @@ from .const import (
 from .coordinator import PerdisCoordinator
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["calendar"]
+PLATFORMS = ["calendar", "sensor"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

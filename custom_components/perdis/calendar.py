@@ -44,7 +44,7 @@ class PerdisCalendar(CoordinatorEntity, CalendarEntity):
     async def async_get_events(self, hass: HomeAssistant, start_date: datetime, end_date: datetime) -> list[CalendarEvent]:
         """Gibt alle Events in einem Zeitraum zurück."""
         events = []
-        for shift in self.coordinator.data or []:
+        for shift in (self.coordinator.data or {}).get("shifts", []):
             start = self._to_dt(shift["start"], shift["allday"])
             end   = self._to_dt(shift["end"],   shift["allday"], end=True)
             if start < end_date and end > start_date:
@@ -52,7 +52,7 @@ class PerdisCalendar(CoordinatorEntity, CalendarEntity):
         return events
 
     def _get_sorted_shifts(self) -> list[dict]:
-        return sorted(self.coordinator.data or [], key=lambda s: str(s["start"]))
+        return sorted((self.coordinator.data or {}).get("shifts", []), key=lambda s: str(s["start"]))
 
     def _to_dt(self, val, allday: bool, end: bool = False) -> datetime:
         if allday:

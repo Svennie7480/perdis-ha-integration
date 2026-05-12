@@ -34,10 +34,12 @@ class PerdisCoordinator(DataUpdateCoordinator):
     """Koordiniert das tägliche Abrufen des Perdis Dienstplans."""
 
     def __init__(self, hass: HomeAssistant, base_url: str, username: str, password: str) -> None:
-        self.base_url  = base_url.rstrip("/")
-        self.username  = username
-        self.password  = password
-        self.roster_url = f"{self.base_url}/roster.aspx"
+        self.base_url    = base_url.rstrip("/")
+        self.username    = username
+        self.password    = password
+        self.roster_url  = f"{self.base_url}/roster.aspx"
+        self.planbals_url = f"{self.base_url}/planbals.aspx"
+        self.balances_url = f"{self.base_url}/balances.aspx"
 
         super().__init__(
             hass,
@@ -49,14 +51,15 @@ class PerdisCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> list[dict]:
         """Wird von HA automatisch stündlich aufgerufen."""
         try:
-            return await self.hass.async_add_executor_job(self._fetch_all_months)
+            result = await self.hass.async_add_executor_job(self._fetch_all_months)
+            return result
         except PermissionError as err:
             raise UpdateFailed(f"Login fehlgeschlagen: {err}") from err
         except Exception as err:
             raise UpdateFailed(f"Fehler beim Abrufen: {err}") from err
 
-    def _fetch_all_months(self) -> list[dict]:
-        """Login + 3 Monate scrapen."""
+    def _fetch_all_months(self) -> dict:
+        """Login + 3 Monate scrapen + Balances laden."""
         session = requests.Session()
         self._login(session)
 
@@ -78,7 +81,11 @@ class PerdisCoordinator(DataUpdateCoordinator):
                 unique.append(s)
 
         _LOGGER.info("Perdis: %d Einträge für 3 Monate geladen.", len(unique))
-        return unique
+
+        # Balances laden
+        balances = self._fetch_balances(session)
+
+        return {"shifts": unique, "balances": balances}
 
     def _login(self, session: requests.Session) -> None:
         """ASP.NET Login mit Cookie-Redirect-Flow."""
@@ -126,6 +133,77 @@ class PerdisCoordinator(DataUpdateCoordinator):
         r = session.get(url, headers=HEADERS, timeout=15, allow_redirects=True)
         r.raise_for_status()
         return self._parse(BeautifulSoup(r.text, "html.parser"))
+
+    def _fetch_balances(self, session: requests.Session) -> dict:
+        """Urlaubstage und Überstunden von planbals.aspx und balances.aspx laden."""
+        balances = {}
+
+        try:
+            # Plansalden (Urlaubstage)
+            r = session.get(self.planbals_url, headers=HEADERS, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+            for row in soup.select("table tbody tr"):
+                cells = row.find_all("td")
+                if len(cells) >= 5:
+                    konto = cells[0].get_text(strip=True)
+                    rest     = self._parse_days(cells[3].get_text(strip=True))
+                    anspruch = self._parse_days(cells[4].get_text(strip=True))
+                    plan     = self._parse_days(cells[5].get_text(strip=True)) if len(cells) > 5 else None
+
+                    if konto.startswith("U Urlaub"):
+                        balances["urlaub_rest"]     = rest
+                        balances["urlaub_anspruch"] = anspruch
+                        balances["urlaub_plan"]     = plan
+                    elif konto.startswith("UF"):
+                        balances["zusatzurlaub_rest"] = rest
+
+            # Salden (Überstunden etc.)
+            r2 = session.get(self.balances_url, headers=HEADERS, timeout=15)
+            soup2 = BeautifulSoup(r2.text, "html.parser")
+            key_map = {
+                "Überstunden":      "ueberstunden",
+                "Soll-/Ist":        "soll_ist",
+                "TVK Privat":       "tvk_privat",
+                "Langzeitkonto":    "langzeitkonto",
+                "Samstagszuschlag": "samstagszuschlag",
+                "Sonntagszuschlag": "sonntagszuschlag",
+                "Feiertag 100%":    "feiertag_100",
+                "Urlaubsaufschlag": "urlaubsaufschlag",
+            }
+            for row in soup2.select("table tbody tr"):
+                cells = row.find_all("td")
+                if len(cells) >= 4:
+                    konto = cells[0].get_text(strip=True)
+                    wert  = cells[3].get_text(strip=True)
+                    for k, v in key_map.items():
+                        if konto.startswith(k):
+                            balances[v] = self._parse_hours(wert)
+                            break
+
+            _LOGGER.info("Perdis Balances geladen: %s", list(balances.keys()))
+        except Exception as err:
+            _LOGGER.warning("Perdis: Fehler beim Laden der Balances: %s", err)
+
+        return balances
+
+    def _parse_days(self, val: str) -> float | None:
+        """Parst Tageswerte wie '24,00' oder '24.00'."""
+        try:
+            return float(val.replace(",", "."))
+        except (ValueError, AttributeError):
+            return None
+
+    def _parse_hours(self, val: str) -> float | None:
+        """Parst Stundenwerte wie '90:22' → 90.37 Stunden."""
+        try:
+            if ":" in val:
+                h, m = val.split(":")
+                negative = h.startswith("-")
+                hours = abs(int(h)) + int(m) / 60
+                return -round(hours, 2) if negative else round(hours, 2)
+            return float(val.replace(",", "."))
+        except (ValueError, AttributeError):
+            return None
 
     def _parse(self, soup: BeautifulSoup) -> list[dict]:
         """Kalender-HTML parsen → Liste von Schicht-Dicts."""

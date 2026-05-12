@@ -24,7 +24,7 @@ Automatisches Scrapen des Perdis WebComm Dienstplans und Anzeige als Home Assist
 
 1. Einstellungen → Integrationen → **+ Hinzufügen** → **Perdis Dienstplan**
 2. Zugangsdaten eingeben:
-   - **Basis-URL**: `https://perdis.svhl.de/WebComm` (oder deine eigene Instanz)
+   - **Basis-URL**: `https://perdis_URL/WebComm` (oder deine eigene Instanz)
    - **Benutzername**: dein Perdis-Login
    - **Passwort**: dein Perdis-Passwort
 3. Optional: Wecker konfigurieren:

@@ -14,15 +14,35 @@ async def async_setup_automations(
     alexa_entity: str,
     notify_entity: str,
     wakeup_minutes: int,
+    wakeup_before: str = "",
 ) -> None:
     """Registriert die Wecker-Automation in HA."""
 
-    from homeassistant.components.automation import (
-        AutomationConfig,
-    )
-
     automation_id = f"perdis_wecker_{entry.entry_id}"
-    offset = f"-{wakeup_minutes // 60}:{wakeup_minutes % 60:02d}:00"
+    offset_h = wakeup_minutes // 60
+    offset_m = wakeup_minutes % 60
+    offset = f"-{offset_h}:{offset_m:02d}:00"
+
+    # Condition: Ganztages-Einträge überspringen
+    conditions = [{
+        "condition": "template",
+        "value_template": (
+            "{% set title = trigger.calendar_event.summary %}"
+            "{% set ganztag = ['Urlaub','Frei','Arbeitsbefreiung','Freizeitausgleich','Überstunden','Krank ohne Schein','Streik'] %}"
+            "{{ title not in ganztag }}"
+        ),
+    }]
+
+    # Optionale Condition: nur wecken wenn Dienst vor X Uhr
+    if wakeup_before:
+        conditions.append({
+            "condition": "template",
+            "value_template": (
+                f"{{% set dienst_start = (trigger.calendar_event.start | as_datetime | as_local) %}}"
+                f"{{% set grenze = today_at('{wakeup_before}') %}}"
+                "{{ dienst_start < grenze }}"
+            ),
+        })
 
     actions = []
 
@@ -33,7 +53,7 @@ async def async_setup_automations(
                 "target": alexa_entity,
                 "data": {"type": "announce"},
                 "message": (
-                    "Guten Morgen! Dein Dienst {{ trigger.calendar_event.summary }} "
+                    f"Guten Morgen! Dein Dienst {{{{ trigger.calendar_event.summary }}}} "
                     f"beginnt in {wakeup_minutes} Minuten um "
                     "{{ (trigger.calendar_event.start | as_datetime | as_local).strftime('%H:%M') }} "
                     "Uhr. Guten Dienst!"
@@ -42,6 +62,7 @@ async def async_setup_automations(
         })
 
     if notify_entity:
+        # Handy-Benachrichtigung
         actions.append({
             "service": notify_entity,
             "data": {
@@ -72,24 +93,7 @@ async def async_setup_automations(
             },
         })
 
-    config = {
-        "id": automation_id,
-        "alias": f"Perdis Wecker ({entry.data.get('username')})",
-        "trigger": [{
-            "platform": "calendar",
-            "event": "start",
-            "offset": offset,
-            "entity_id": f"calendar.perdis_dienstplan_{entry.entry_id[:8]}",
-        }],
-        "condition": [{
-            "condition": "template",
-            "value_template": (
-                "{% set title = trigger.calendar_event.summary %}"
-                "{% set ganztag = ['Urlaub','Frei','Arbeitsbefreiung','Freizeitausgleich','Überstunden','Krank ohne Schein','Streik'] %}"
-                "{{ title not in ganztag }}"
-            ),
-        }],
-        "action": actions,
-    }
-
-    _LOGGER.info("Perdis: Wecker-Automation '%s' wurde eingerichtet.", automation_id)
+    _LOGGER.info(
+        "Perdis: Wecker-Automation '%s' konfiguriert (offset=%s, nur vor=%s).",
+        automation_id, offset, wakeup_before or "immer"
+    )

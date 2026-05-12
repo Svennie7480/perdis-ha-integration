@@ -1,4 +1,4 @@
-"""Config Flow für Perdis Dienstplan Integration."""
+"""Config Flow und Options Flow für Perdis Dienstplan Integration."""
 from __future__ import annotations
 
 import voluptuous as vol
@@ -17,16 +17,23 @@ from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
+    TimeSelector,
+    TimeSelectorConfig,
 )
 
-from .const import DOMAIN, CONF_BASE_URL, CONF_USERNAME, CONF_PASSWORD, CONF_ALEXA_ENTITY, CONF_NOTIFY_ENTITY, CONF_WAKEUP_MINUTES
+from .const import (
+    DOMAIN,
+    CONF_BASE_URL, CONF_USERNAME, CONF_PASSWORD,
+    CONF_ALEXA_ENTITY, CONF_NOTIFY_ENTITY,
+    CONF_WAKEUP_MINUTES, CONF_WAKEUP_BEFORE,
+)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 }
 
 STEP_USER_SCHEMA = vol.Schema({
-    vol.Required(CONF_BASE_URL, default="https://perdis.svhl.de/WebComm"): TextSelector(
+    vol.Required(CONF_BASE_URL): TextSelector(
         TextSelectorConfig(type=TextSelectorType.URL)
     ),
     vol.Required(CONF_USERNAME): TextSelector(
@@ -37,17 +44,23 @@ STEP_USER_SCHEMA = vol.Schema({
     ),
 })
 
-STEP_NOTIFY_SCHEMA = vol.Schema({
-    vol.Optional(CONF_ALEXA_ENTITY): EntitySelector(
-        EntitySelectorConfig(domain="media_player")
-    ),
-    vol.Optional(CONF_NOTIFY_ENTITY): TextSelector(
-        TextSelectorConfig(type=TextSelectorType.TEXT)
-    ),
-    vol.Optional(CONF_WAKEUP_MINUTES, default=60): NumberSelector(
-        NumberSelectorConfig(min=15, max=240, step=15, mode=NumberSelectorMode.SLIDER)
-    ),
-})
+
+def _notifications_schema(defaults: dict = {}) -> vol.Schema:
+    """Schema für Benachrichtigungen – mit optionalen Defaults."""
+    return vol.Schema({
+        vol.Optional(CONF_ALEXA_ENTITY, default=defaults.get(CONF_ALEXA_ENTITY, "")): EntitySelector(
+            EntitySelectorConfig(domain="media_player")
+        ),
+        vol.Optional(CONF_NOTIFY_ENTITY, default=defaults.get(CONF_NOTIFY_ENTITY, "")): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+        vol.Optional(CONF_WAKEUP_MINUTES, default=defaults.get(CONF_WAKEUP_MINUTES, 60)): NumberSelector(
+            NumberSelectorConfig(min=15, max=240, step=15, mode=NumberSelectorMode.SLIDER)
+        ),
+        vol.Optional(CONF_WAKEUP_BEFORE, default=defaults.get(CONF_WAKEUP_BEFORE, "")): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.TEXT)
+        ),
+    })
 
 
 def _test_login(base_url: str, username: str, password: str) -> bool:
@@ -58,7 +71,11 @@ def _test_login(base_url: str, username: str, password: str) -> bool:
     r = session.get(roster_url, headers=HEADERS, timeout=15, allow_redirects=True)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    fields = {inp.get("name"): inp.get("value", "") for inp in soup.find_all("input", {"type": "hidden"}) if inp.get("name")}
+    fields = {
+        inp.get("name"): inp.get("value", "")
+        for inp in soup.find_all("input", {"type": "hidden"})
+        if inp.get("name")
+    }
     user_field = next((inp.get("name") for inp in soup.find_all("input") if "UserName" in inp.get("name", "")), None)
     pass_field = next((inp.get("name") for inp in soup.find_all("input") if "Password" in inp.get("name", "")), None)
 
@@ -107,7 +124,7 @@ class PerdisConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_notifications(self, user_input=None) -> FlowResult:
-        """Schritt 2: Benachrichtigungen mit Selektoren."""
+        """Schritt 2: Benachrichtigungen konfigurieren."""
         if user_input is not None:
             data = {**self._user_data, **user_input}
             return self.async_create_entry(
@@ -117,5 +134,29 @@ class PerdisConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="notifications",
-            data_schema=STEP_NOTIFY_SCHEMA,
+            data_schema=_notifications_schema(),
+        )
+
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        return PerdisOptionsFlow(config_entry)
+
+
+class PerdisOptionsFlow(config_entries.OptionsFlow):
+    """Options Flow – Einstellungen nachträglich ändern."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None) -> FlowResult:
+        """Einstellungen anzeigen und speichern."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Aktuelle Werte als Defaults laden
+        current = {**self.config_entry.data, **self.config_entry.options}
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=_notifications_schema(current),
         )

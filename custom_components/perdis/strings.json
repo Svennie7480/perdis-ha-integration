@@ -5,18 +5,22 @@
         "title": "Perdis Dienstplan – Verbindung",
         "description": "Gib deine Perdis WebComm Zugangsdaten ein.",
         "data": {
-          "base_url": "Basis-URL (z.B. https://perdis.svhl.de/WebComm)",
+          "base_url": "Basis-URL",
           "username": "Benutzername",
           "password": "Passwort"
+        },
+        "data_description": {
+          "base_url": "z.B. https://perdis.svhl.de/WebComm"
         }
       },
       "notifications": {
-        "title": "Perdis Dienstplan – Benachrichtigungen",
-        "description": "Optional: Wecker und Benachrichtigungen konfigurieren.",
+        "title": "Perdis Dienstplan – Wecker & Benachrichtigungen",
+        "description": "Optional: Wecker und Benachrichtigungen konfigurieren. Alle Felder sind optional.",
         "data": {
-          "alexa_entity": "Alexa Entität (z.B. media_player.echo_wohnzimmer)",
+          "alexa_entity": "Alexa Gerät",
           "notify_entity": "Handy Benachrichtigung (z.B. notify.mobile_app_meinhandy)",
-          "wakeup_minutes": "Wieviel Minuten vor Dienstbeginn wecken?"
+          "wakeup_minutes": "Minuten vor Dienstbeginn wecken",
+          "wakeup_before": "Nur wecken wenn Dienst vor dieser Uhrzeit beginnt (leer = immer wecken)"
         }
       }
     },
@@ -27,6 +31,19 @@
     },
     "abort": {
       "already_configured": "Perdis ist bereits konfiguriert"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Perdis Dienstplan – Einstellungen",
+        "data": {
+          "alexa_entity": "Alexa Gerät",
+          "notify_entity": "Handy Benachrichtigung (z.B. notify.mobile_app_meinhandy)",
+          "wakeup_minutes": "Minuten vor Dienstbeginn wecken",
+          "wakeup_before": "Nur wecken wenn Dienst vor dieser Uhrzeit beginnt (leer = immer wecken)"
+        }
+      }
     }
   }
 }

@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, CONF_BASE_URL, CONF_USERNAME, CONF_PASSWORD, CONF_ALEXA_ENTITY, CONF_NOTIFY_ENTITY, CONF_WAKEUP_MINUTES
 
@@ -19,12 +20,6 @@ STEP_USER_SCHEMA = vol.Schema({
     vol.Required(CONF_BASE_URL, default="https://perdis.svhl.de/WebComm"): str,
     vol.Required(CONF_USERNAME): str,
     vol.Required(CONF_PASSWORD): str,
-})
-
-STEP_NOTIFY_SCHEMA = vol.Schema({
-    vol.Optional(CONF_ALEXA_ENTITY, default=""): str,
-    vol.Optional(CONF_NOTIFY_ENTITY, default=""): str,
-    vol.Optional(CONF_WAKEUP_MINUTES, default=60): int,
 })
 
 
@@ -49,8 +44,27 @@ def _test_login(base_url: str, username: str, password: str) -> bool:
     payload["ctl00$cntMainBody$lgnView$lgnLogin$LoginButton"] = "Anmelden"
 
     r2 = session.post(r.url, data=payload, headers={**HEADERS, "Referer": r.url}, timeout=15, allow_redirects=True)
-
     return "UserName" not in r2.text or "LoginButton" not in r2.text
+
+
+def _get_media_players(hass: HomeAssistant) -> dict:
+    """Alle media_player Entitäten als Dropdown-Optionen."""
+    registry = er.async_get(hass)
+    options = {"": "– Kein Alexa –"}
+    for entity in registry.entities.values():
+        if entity.domain == "media_player":
+            options[entity.entity_id] = entity.entity_id
+    return options
+
+
+def _get_notify_services(hass: HomeAssistant) -> dict:
+    """Alle notify.mobile_app_* Services als Dropdown-Optionen."""
+    options = {"": "– Keine Benachrichtigung –"}
+    for service in hass.services.async_services().get("notify", {}).keys():
+        if service.startswith("mobile_app_"):
+            entity_id = f"notify.{service}"
+            options[entity_id] = entity_id
+    return options
 
 
 class PerdisConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -86,7 +100,7 @@ class PerdisConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_notifications(self, user_input=None) -> FlowResult:
-        """Schritt 2: Benachrichtigungen konfigurieren."""
+        """Schritt 2: Benachrichtigungen mit Dropdowns."""
         if user_input is not None:
             data = {**self._user_data, **user_input}
             return self.async_create_entry(
@@ -94,7 +108,16 @@ class PerdisConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data=data,
             )
 
+        media_players = await self.hass.async_add_executor_job(_get_media_players, self.hass)
+        notify_services = _get_notify_services(self.hass)
+
+        schema = vol.Schema({
+            vol.Optional(CONF_ALEXA_ENTITY, default=""): vol.In(media_players),
+            vol.Optional(CONF_NOTIFY_ENTITY, default=""): vol.In(notify_services),
+            vol.Optional(CONF_WAKEUP_MINUTES, default=60): int,
+        })
+
         return self.async_show_form(
             step_id="notifications",
-            data_schema=STEP_NOTIFY_SCHEMA,
+            data_schema=schema,
         )

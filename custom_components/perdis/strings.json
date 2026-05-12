@@ -10,7 +10,7 @@
           "password": "Passwort"
         },
         "data_description": {
-          "base_url": "z.B. https://perdis.svhl.de/WebComm"
+          "base_url": "z.B. https://PERDIS_URL.de/WebComm"
         }
       },
       "notifications": {

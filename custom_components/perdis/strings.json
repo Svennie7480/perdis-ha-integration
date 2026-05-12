@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Perdis Dienstplan – Verbindung",
+        "description": "Gib deine Perdis WebComm Zugangsdaten ein.",
+        "data": {
+          "base_url": "Basis-URL (z.B. https://perdis.svhl.de/WebComm)",
+          "username": "Benutzername",
+          "password": "Passwort"
+        }
+      },
+      "notifications": {
+        "title": "Perdis Dienstplan – Benachrichtigungen",
+        "description": "Optional: Wecker und Benachrichtigungen konfigurieren.",
+        "data": {
+          "alexa_entity": "Alexa Entität (z.B. media_player.echo_wohnzimmer)",
+          "notify_entity": "Handy Benachrichtigung (z.B. notify.mobile_app_meinhandy)",
+          "wakeup_minutes": "Wieviel Minuten vor Dienstbeginn wecken?"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen – URL prüfen",
+      "invalid_auth": "Benutzername oder Passwort falsch",
+      "unknown": "Unbekannter Fehler"
+    },
+    "abort": {
+      "already_configured": "Perdis ist bereits konfiguriert"
+    }
+  }
+}

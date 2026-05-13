@@ -1,51 +1,78 @@
 # Perdis WebComm – Home Assistant Integration
 
-Eine inoffizielle Home Assistant Integration für das Perdis WebComm Personalplanungssystem. Die Integration liest Dienstplandaten, Urlaubssalden, Überstunden, Nachrichten und Dienstversteigerungen direkt aus dem Perdis WebComm Portal und stellt sie als Sensoren in Home Assistant bereit.
+Eine inoffizielle Home Assistant Integration für das Perdis WebComm Personalplanungssystem. Die Integration liest Dienstplandaten, Urlaubssalden, Überstunden, Nachrichten, Dienstversteigerungen und Jahresübersichten direkt aus dem Perdis WebComm Portal und stellt sie als Sensoren in Home Assistant bereit.
 
 > **Hinweis:** Diese Integration ist nicht offiziell von Perdis/IVU Traffic Technologies unterstützt. Sie funktioniert durch Web-Scraping des WebComm-Portals.
+
+---
+
+## Version 1.2.0
+
+### Neu in 1.2.0
+- 📅 **Dienstdetail** – komplette Tagesübersicht mit Wendezeiten und Pausen (Pop-up)
+- 🔨 **Dienstversteigerung** – verfügbare Dienste mit Leitstellen-Alarm
+- 📬 **Nachrichten-Sensor** – neueste Perdis Nachricht mit Betreff und Text
+- 📊 **Monatsübersicht** – Dienste, Stunden, Früh-/Spät-/Nachtschichten
+- 📅 **Jahresübersicht** – Urlaub (geplant + genommen), Krank (K/KOS), AB, FM, ET, Streik
+- 🏆 **Rekorde** – Frühester Start, Spätestes Ende, Längster Dienst des laufenden Jahres
+- 🔔 **Automationen** – Benachrichtigung bei neuer Nachricht, neuem Dienstplan, Leitstellen-Dienst
+- 🌤️ **Wetter** im Dashboard
+- 🎨 **Perdis Dark Theme** mit Hintergrundbild
+- ⏰ **Zeitfenster für Wecker** – Wecker nur zwischen konfigurierbaren Uhrzeiten erlaubt
+- 🕐 **Dienste bis 28:xx Uhr** werden korrekt verarbeitet
+- 🌿 **Entlastungstage (ET)** werden erkannt und gezählt
+- 📆 **Komplettes Jahres-Laden** – Januar bis aktueller Monat + 2 Monate voraus
 
 ---
 
 ## Features
 
 ### 📆 Dienstplan
-- 🚌 **Kalender** – 3 Monate Dienstplan als Home Assistant Kalender
+- 🚌 **Kalender** – Dienstplan als Home Assistant Kalender (Jan bis aktuell +2 Monate)
 - 📅 **Dienstdetail** – komplette Tagesübersicht mit Linien, Wendezeiten und Pausen (klickbares Pop-up)
-- 🏖️ Urlaub, Frei, Arbeitsbefreiung etc. werden im Kalender angezeigt aber **nicht geweckt**
+- 🏖️ Urlaub, Frei, AB, FM, ET, Streik etc. werden im Kalender angezeigt aber **nicht geweckt**
+- 🕐 Dienste die nach Mitternacht enden (z.B. 28:08 Uhr) werden korrekt verarbeitet
 - 🔄 **Stündliche automatische Aktualisierung**
 
 ### ⏰ Wecker & Benachrichtigungen
 - ⏰ **Automatischer Wecker** X Minuten vor Dienstbeginn (konfigurierbar)
 - 🔔 **Alexa-Ansage** + **Android-Wecker** + **Handy-Benachrichtigung**
-- 🌅 Wecker optional **nur wenn Dienst vor einer bestimmten Uhrzeit** beginnt
+- 🕐 Wecker nur innerhalb eines **konfigurierbaren Zeitfensters** (z.B. 21:00–09:30)
 - 🖥️ **Leitstellen-Alarm** – sofortige Benachrichtigung wenn Dienste 800–899 oder „Auslaufdienst Leitstelle" in der Versteigerung erscheinen
+- 📬 **Neue Nachricht** – Benachrichtigung bei neuer Perdis-Nachricht
+- 📅 **Neuer Dienstplan** – Benachrichtigung wenn sich der Kalender ändert
 
 ### 🏖️ Urlaub & Salden
-- **Urlaubssalden** – Rest, Anspruch, Plan, Zusatzurlaub
-- **Überstunden & Salden** – Überstunden, Langzeitkonto, TVK Privat, Soll/Ist
+- Urlaubssalden – Rest, Anspruch, Plan, Zusatzurlaub
+- Überstunden & Salden – Überstunden, Langzeitkonto, TVK Privat, Soll/Ist
 - Farbwarnung bei zu vielen Überstunden (grün/orange/rot)
 - Farbwarnung bei wenig Resturlaub
 
+### 📊 Statistiken
+- **Monatsübersicht** – Dienste, Stunden, Durchschnitt, Früh-/Spät-/Nachtschichten
+- **Jahresübersicht** – Urlaub (geplant + genommen), Krank (K + KOS getrennt), AB, FM, ET, Streik, Überstundenabbau
+- **Rekorde** – Frühester Start, Spätestes Ende, Längster Dienst des laufenden Jahres
+
 ### 📬 Nachrichten
-- **Letzte Nachricht** – Betreff und Text der neuesten WebComm-Nachricht
+- Neueste Nachricht mit Betreff und Text
 - Gesamtanzahl Nachrichten
 
 ### 🔨 Dienstversteigerung
-- **Alle verfügbaren Dienste** auf einen Blick
-- **Leitstellen-Dienste** (800–899 + „Auslaufdienst Leitstelle") werden rot hervorgehoben
+- Alle verfügbaren Dienste auf einen Blick
+- Leitstellen-Dienste (800–899 + „Auslaufdienst Leitstelle") werden rot hervorgehoben
 - Sofortige Benachrichtigung auf Alexa + Handy bei Leitstellen-Diensten
 
 ### ⚙️ Konfiguration
-- ⚙️ **Einstellungen jederzeit nachträglich änderbar** (Weckzeit, Offset, Benachrichtigungsgeräte)
-- 👥 **Mehrere Mitarbeiter** pro HA-Installation möglich
-- 🏢 **Optionale Ortskonfiguration** – eigene Kürzel für Betriebshof, ZOB etc. definierbar
+- Einstellungen jederzeit nachträglich änderbar
+- Mehrere Mitarbeiter pro HA-Installation möglich
+- Zeitfenster für Wecker konfigurierbar
 
 ---
 
 ## Voraussetzungen
 
 - Home Assistant 2024.1 oder neuer
-- Zugang zu einem Perdis WebComm Portal (z.B. `https://perdis.beispiel.de/WebComm`)
+- Zugang zu einem Perdis WebComm Portal
 - HACS (für einfache Installation)
 
 ---
@@ -65,18 +92,15 @@ Eine inoffizielle Home Assistant Integration für das Perdis WebComm Personalpla
 ```bash
 cd /homeassistant/custom_components
 mkdir perdis
-cd perdis
-wget https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/__init__.py
-wget https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/coordinator.py
-wget https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/sensor.py
-wget https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/calendar.py
-wget https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/config_flow.py
-wget https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/const.py
-wget https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/manifest.json
-wget https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/strings.json
+wget -O /homeassistant/custom_components/perdis/coordinator.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/coordinator.py
+wget -O /homeassistant/custom_components/perdis/sensor.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/sensor.py
+wget -O /homeassistant/custom_components/perdis/calendar.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/calendar.py
+wget -O /homeassistant/custom_components/perdis/config_flow.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/config_flow.py
+wget -O /homeassistant/custom_components/perdis/const.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/const.py
+wget -O /homeassistant/custom_components/perdis/__init__.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/__init__.py
+wget -O /homeassistant/custom_components/perdis/manifest.json https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/manifest.json
+wget -O /homeassistant/custom_components/perdis/strings.json https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/strings.json
 ```
-
-Home Assistant neu starten.
 
 ---
 
@@ -88,11 +112,14 @@ Home Assistant neu starten.
 
 | Feld | Beschreibung | Beispiel |
 |------|-------------|---------|
-| WebComm URL | URL des Perdis Portals | `https://perdis.beispiel.de/WebComm` |
-| Benutzername | Deine Mitarbeiternummer | `183` |
-| Passwort | Dein WebComm Passwort | |
-
-> **Hinweis bei Sonderzeichen im Passwort:** Im Terminal einfache Anführungszeichen verwenden: `export PASS='mein!passwort'`
+| WebComm URL | URL des Perdis Portals | `https://perdis.svhl.de/WebComm` |
+| Benutzername | Mitarbeiternummer | `183` |
+| Passwort | WebComm Passwort | |
+| Alexa Gerät | Optional | `media_player.echo_show` |
+| Handy | Optional | `notify.mobile_app_meinhandy` |
+| Weckzeit (Minuten) | Minuten vor Dienst | `75` |
+| Wecker ab | Früheste Weckzeit | `21:00` |
+| Wecker bis | Späteste Weckzeit | `09:30` |
 
 ---
 
@@ -101,7 +128,7 @@ Home Assistant neu starten.
 ### Kalender
 | Entität | Beschreibung |
 |---------|-------------|
-| `calendar.dienstplan` | Alle Dienste als Kalendereinträge (3 Monate) |
+| `calendar.dienstplan` | Alle Dienste als Kalendereinträge |
 
 ### Sensoren – Urlaub
 | Entität | Beschreibung |
@@ -118,60 +145,53 @@ Home Assistant neu starten.
 | `sensor.langzeitkonto` | Langzeitkonto-Saldo |
 | `sensor.tvk_privat` | TVK Privat-Saldo |
 | `sensor.soll_ist_leistung` | Soll-/Ist-Leistung |
-| `sensor.samstagszuschlag` | Samstagszuschlag dieser Periode |
-| `sensor.sonntagszuschlag` | Sonntagszuschlag dieser Periode |
+| `sensor.samstagszuschlag` | Samstagszuschlag |
+| `sensor.sonntagszuschlag` | Sonntagszuschlag |
 | `sensor.feiertag_100` | Feiertagszuschlag 100% |
 | `sensor.urlaubsaufschlag` | Urlaubsaufschlag |
 
-### Sensoren – Nachrichten
-| Entität | Beschreibung | Attribute |
-|---------|-------------|-----------|
-| `sensor.letzte_nachricht_betreff` | Betreff der neuesten Nachricht | `header`, `text`, `total` |
-| `sensor.nachrichten_anzahl` | Gesamtanzahl Nachrichten | |
+### Sensoren – Statistiken
+| Entität | Beschreibung |
+|---------|-------------|
+| `sensor.monatsubersicht` | Monatsstatistik mit Attributen |
+| `sensor.jahresubersicht` | Jahresstatistik mit Attributen |
+| `sensor.rekorde` | Rekorde des laufenden Jahres |
 
-### Sensoren – Dienstdetail
-| Entität | Beschreibung | Attribute |
-|---------|-------------|-----------|
-| `sensor.dienstdetail_heute` | Dienstdetails für heute | `rows`, `start_ort`, `end_ort`, `linien`, `wende_total_min`, `pause_bezahlt_min`, `pause_unbezahlt_min` |
-
-### Sensoren – Dienstversteigerung
-| Entität | Beschreibung | Attribute |
-|---------|-------------|-----------|
-| `sensor.dienstversteigerung` | Verfügbare Dienste in der Versteigerung | `items`, `has_leitstelle`, `leitstelle_items`, `total` |
+### Sensoren – Nachrichten & Dienste
+| Entität | Beschreibung |
+|---------|-------------|
+| `sensor.letzte_nachricht_betreff` | Neueste Nachricht |
+| `sensor.nachrichten_anzahl` | Anzahl Nachrichten |
+| `sensor.dienstdetail_heute` | Dienstdetails heute |
+| `sensor.dienstversteigerung` | Verfügbare Dienste |
 
 ---
 
-## Ganztages-Einträge im Kalender
-
-Folgende Einträge werden als Ganztags-Ereignisse dargestellt:
+## Ganztags-Einträge
 
 | Kürzel | Bedeutung |
 |--------|-----------|
 | `U` | Urlaub |
 | `AB` | Arbeitsbefreiung |
 | `F` | Frei |
-| `FM` | Freizeitausgleich |
+| `FM` | Freizeitausgleich / Frei Mehrleistung |
 | `FA` | Überstundenabbau |
+| `K` | Krank mit Schein |
 | `KOS` | Krank ohne Schein |
 | `STR` | Streik |
+| `ET` | Entlastungstag |
 
 ---
 
 ## Dashboard
 
-Im Repository liegt eine fertige Dashboard-Konfiguration (`dashboard/perdis_dashboard.yaml`) mit:
+Im Repository liegt eine fertige Dashboard-Konfiguration (`dashboard/perdis_dashboard.yaml`) mit 3-Spalten-Layout:
 
-- **3-Spalten-Layout** (Sections View)
-- **Nächster Dienst** mit dynamischem Icon je nach Diensttyp
-- **Dienstdetail** als Pop-up mit farbiger Tabelle (Wenden 🟢, Bezahlte Pause 🟡, Unbezahlte Pause 🔵)
-- **Urlaubsübersicht** mit Farbwarnung bei wenig Resturlaub
-- **Überstunden** mit dynamischer Farbcodierung (grün/orange/rot)
-- **Dienstversteigerung** mit Leitstellen-Alarm (rote Kachel)
-- **Kalender** der nächsten 7 Tage (benötigt Atomic Calendar Revive)
-- **Letzte Nachricht** mit lila Rahmen
+- **Spalte 1:** Nächster Dienst + Dienstdetail + Dienstversteigerung + Dieser Monat
+- **Spalte 2:** Urlaub + Wetter + Jahresübersicht + Rekorde
+- **Spalte 3:** Kalender + Überstunden & Salden + Letzte Nachricht
 
 ### Benötigte HACS Frontend-Pakete
-
 - [Mushroom Cards](https://github.com/piitaya/lovelace-mushroom)
 - [Atomic Calendar Revive](https://github.com/totaldebug/atomic-calendar-revive)
 - [Card Mod](https://github.com/thomasloven/lovelace-card-mod)
@@ -179,45 +199,11 @@ Im Repository liegt eine fertige Dashboard-Konfiguration (`dashboard/perdis_dash
 
 ---
 
-## Alarm-Automation: Leitstellen-Dienst
-
-Wenn ein Dienst zwischen 800–899 oder ein „Auslaufdienst Leitstelle" in der Versteigerung erscheint, kann eine Benachrichtigung ausgelöst werden.
-
-Einstellungen → Automationen → + Hinzufügen → Als YAML bearbeiten:
-
-```yaml
-alias: "Perdis Leitstellen-Alarm"
-triggers:
-  - trigger: state
-    entity_id: sensor.dienstversteigerung
-conditions:
-  - condition: template
-    value_template: >
-      {{ state_attr('sensor.dienstversteigerung', 'has_leitstelle') == true }}
-actions:
-  - action: notify.mobile_app_dein_handy
-    data:
-      title: "🖥️ Leitstellen-Dienst verfügbar!"
-      message: >
-        {% set items = state_attr('sensor.dienstversteigerung', 'leitstelle_items') %}
-        {% for i in items %}{{ i.dienst }} am {{ i.betriebstag }} ({{ i.dienstzeit }}) {% endfor %}
-      data:
-        priority: high
-```
-
----
-
 ## Theme
 
-Im Repository liegt ein passendes dunkles Theme (`themes/perdis/perdis.yaml`):
-- Fast-schwarzer Hintergrund
-- Orange Akzente (passend zum Stadtbus-Design)
-- Türkis für Highlights
-
-Installation:
 ```bash
 mkdir -p /homeassistant/themes/perdis
-# Datei aus Repository kopieren nach /homeassistant/themes/perdis/perdis.yaml
+# perdis.yaml nach /homeassistant/themes/perdis/perdis.yaml kopieren
 ```
 
 In `configuration.yaml`:
@@ -228,30 +214,30 @@ frontend:
 
 ---
 
-## Bekannte Einschränkungen
-
-- Die Integration funktioniert nur mit dem Perdis WebComm Portal (ASP.NET)
-- Passwörter mit Sonderzeichen müssen in einfachen Anführungszeichen gesetzt werden
-- Der Options Flow (Einstellungen nachträglich ändern) funktioniert bei bestehenden Installationen nicht – Integration neu einrichten bei Änderungen
-- Im Urlaub werden keine Dienste in der Versteigerung angezeigt (Perdis-seitige Einschränkung)
-
----
-
 ## Updateanleitung
 
 ```bash
-cd /homeassistant/custom_components/perdis
-wget -O coordinator.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/coordinator.py
-wget -O sensor.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/sensor.py
-# HA neu starten
+wget -O /homeassistant/custom_components/perdis/coordinator.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/coordinator.py
+wget -O /homeassistant/custom_components/perdis/sensor.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/sensor.py
+wget -O /homeassistant/custom_components/perdis/const.py https://raw.githubusercontent.com/Svennie7480/perdis-ha-integration/main/custom_components/perdis/const.py
 ```
+
+HA neu starten.
+
+---
+
+## Bekannte Einschränkungen
+
+- Nur für Perdis WebComm (ASP.NET) getestet
+- Im Urlaub werden keine Dienste in der Versteigerung angezeigt
+- Options Flow funktioniert nur bei Neuinstallationen korrekt
 
 ---
 
 ## Lizenz
 
-MIT License – Nutzung auf eigene Gefahr. Diese Integration ist nicht offiziell von IVU Traffic Technologies / Perdis unterstützt.
+MIT License – Nutzung auf eigene Gefahr. Nicht offiziell von IVU Traffic Technologies unterstützt.
 
 ---
 
-*Entwickelt mit ❤️ und vielen Tassen Kaffee – und mit Hilfe von Claude (Anthropic)*
+*Entwickelt mit ❤️ und Claude (Anthropic)*

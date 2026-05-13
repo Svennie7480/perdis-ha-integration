@@ -10,7 +10,7 @@
           "password": "Passwort"
         },
         "data_description": {
-          "base_url": "z.B. https://PERDIS_URL.de/WebComm"
+          "base_url": "z.B. https://perdis.svhl.de/WebComm"
         }
       },
       "notifications": {
@@ -20,7 +20,12 @@
           "alexa_entity": "Alexa Gerät",
           "notify_entity": "Handy Benachrichtigung (z.B. notify.mobile_app_meinhandy)",
           "wakeup_minutes": "Minuten vor Dienstbeginn wecken",
-          "wakeup_before": "Nur wecken wenn Dienst vor dieser Uhrzeit beginnt (leer = immer wecken)"
+          "wakeup_from": "Wecker erlaubt ab (z.B. 21:00)",
+          "wakeup_until": "Wecker erlaubt bis (z.B. 09:30)"
+        },
+        "data_description": {
+          "wakeup_from": "Früheste Uhrzeit zu der der Wecker klingeln darf",
+          "wakeup_until": "Späteste Uhrzeit zu der der Wecker klingeln darf"
         }
       }
     },
@@ -37,11 +42,18 @@
     "step": {
       "init": {
         "title": "Perdis Dienstplan – Einstellungen",
+        "description": "Wecker klingelt X Minuten vor Dienstbeginn, aber nur wenn die Weckzeit im erlaubten Zeitfenster liegt.",
         "data": {
           "alexa_entity": "Alexa Gerät",
           "notify_entity": "Handy Benachrichtigung (z.B. notify.mobile_app_meinhandy)",
           "wakeup_minutes": "Minuten vor Dienstbeginn wecken",
-          "wakeup_before": "Nur wecken wenn Dienst vor dieser Uhrzeit beginnt (leer = immer wecken)"
+          "wakeup_from": "Wecker erlaubt ab (z.B. 21:00)",
+          "wakeup_until": "Wecker erlaubt bis (z.B. 09:30)"
+        },
+        "data_description": {
+          "wakeup_minutes": "z.B. 75 = Wecker 1h15min vor Dienstbeginn",
+          "wakeup_from": "Früheste Uhrzeit zu der der Wecker klingeln darf",
+          "wakeup_until": "Späteste Uhrzeit zu der der Wecker klingeln darf"
         }
       }
     }

@@ -57,8 +57,11 @@ def _notifications_schema(defaults: dict = {}) -> vol.Schema:
         vol.Optional(CONF_WAKEUP_MINUTES, default=defaults.get(CONF_WAKEUP_MINUTES, 60)): NumberSelector(
             NumberSelectorConfig(min=15, max=240, step=15, mode=NumberSelectorMode.SLIDER)
         ),
-        vol.Optional(CONF_WAKEUP_BEFORE, default=defaults.get(CONF_WAKEUP_BEFORE, "")): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.TEXT)
+        vol.Optional("wakeup_from", default=defaults.get("wakeup_from", "21:00")): TimeSelector(
+            TimeSelectorConfig()
+        ),
+        vol.Optional("wakeup_until", default=defaults.get("wakeup_until", "09:30")): TimeSelector(
+            TimeSelectorConfig()
         ),
     })
 

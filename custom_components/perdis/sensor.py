@@ -112,13 +112,15 @@ class PerdisAuctionSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def native_value(self):
-        auction = (self.coordinator.data or {}).get("auction", {})
+        if not self.coordinator.data:
+            return "Keine Dienste in der Versteigerung"
+        auction = self.coordinator.data.get("auction", {})
         total = auction.get("total", 0)
         leitstelle = len(auction.get("leitstelle_items", []))
         if total == 0:
-            return "Keine Dienste"
+            return "Keine Dienste in der Versteigerung"
         if leitstelle > 0:
-            return f"⚠️ {leitstelle} Leitstelle | {total} gesamt"
+            return f"⚠️ {leitstelle} Leitstellen-Dienst | {total} gesamt"
         return f"{total} Dienste verfügbar"
 
     @property

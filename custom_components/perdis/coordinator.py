@@ -232,6 +232,10 @@ class PerdisCoordinator(DataUpdateCoordinator):
                 dienstart    = cells[7]
                 ablauf       = cells[8]
 
+                # Leere Zeilen überspringen (Perdis zeigt "-" wenn keine Dienste)
+                if dienst == "-" or betriebstag == "-":
+                    continue
+
                 # Typ bestimmen
                 num = -1
                 try:

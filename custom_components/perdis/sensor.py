@@ -269,14 +269,20 @@ class PerdisMonthlySummarySensor(CoordinatorEntity, SensorEntity):
         for s in shifts:
             if not s.get("start"):
                 continue
-            start_dt = as_datetime(s["start"])
+            try:
+                start_dt = s["start"] if isinstance(s["start"], datetime) else datetime.fromisoformat(str(s["start"]))
+            except Exception:
+                continue
             if start_dt.month != now.month or start_dt.year != now.year:
                 continue
             title = s.get("title", "")
             if title in ganztag:
                 continue
 
-            end_dt = as_datetime(s["end"]) if s.get("end") else None
+            try:
+                end_dt = s["end"] if isinstance(s["end"], datetime) else datetime.fromisoformat(str(s["end"])) if s.get("end") else None
+            except Exception:
+                end_dt = None
             dienst_count += 1
 
             if end_dt:

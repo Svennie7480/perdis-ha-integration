@@ -92,7 +92,123 @@ async def async_setup_entry(
     # Monatszusammenfassung
     entities.append(PerdisMonthlySummarySensor(coordinator, entry))
 
+    # Jahresübersicht & Rekorde
+    entities.append(PerdisAbsencesSensor(coordinator, entry))
+    entities.append(PerdisRecordsSensor(coordinator, entry))
+
     async_add_entities(entities)
+
+
+class PerdisAbsencesSensor(CoordinatorEntity, SensorEntity):
+    """Sensor für die Jahresübersicht."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Jahresübersicht"
+    _attr_icon = "mdi:calendar-year"
+
+    def __init__(self, coordinator: PerdisCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_absences"
+
+    @property
+    def native_value(self):
+        if not self.coordinator.data:
+            return None
+        absences = self.coordinator.data.get("absences", {})
+        counts = absences.get("counts", {})
+        return counts.get("urlaub", 0)
+
+    @property
+    def extra_state_attributes(self):
+        if not self.coordinator.data:
+            return {}
+        absences = self.coordinator.data.get("absences", {})
+        counts = absences.get("counts", {})
+        return {
+            "year":               absences.get("year", ""),
+            "urlaub_tage":        counts.get("urlaub", 0),
+            "krank_tage":         counts.get("krank", 0),
+            "arbeitsbefreiung":   counts.get("arbeitsbefreiung", 0),
+            "freizeitausgleich":  counts.get("freizeitausgleich", 0),
+            "streik_tage":        counts.get("streik", 0),
+            "ueberstunden_abbau": counts.get("ueberstunden_abbau", 0),
+            "summary":            absences.get("summary", []),
+        }
+
+
+class PerdisRecordsSensor(CoordinatorEntity, SensorEntity):
+    """Sensor für Rekorde aus dem Dienstplan."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Rekorde"
+    _attr_icon = "mdi:trophy"
+
+    def __init__(self, coordinator: PerdisCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_records"
+
+    @property
+    def native_value(self):
+        if not self.coordinator.data:
+            return None
+        shifts = self.coordinator.data.get("shifts", [])
+        ganztag = ["Urlaub","Frei","Arbeitsbefreiung","Freizeitausgleich",
+                   "Überstunden","Krank ohne Schein","Streik"]
+        work = [s for s in shifts if s.get("title") not in ganztag and s.get("start") and s.get("end")]
+        return len(work)
+
+    @property
+    def extra_state_attributes(self):
+        if not self.coordinator.data:
+            return {}
+        shifts = self.coordinator.data.get("shifts", [])
+        ganztag = ["Urlaub","Frei","Arbeitsbefreiung","Freizeitausgleich",
+                   "Überstunden","Krank ohne Schein","Streik"]
+
+        longest_minutes = 0
+        longest_dienst = ""
+        longest_date = ""
+        earliest_start = "23:59"
+        earliest_date = ""
+        latest_end = "00:00"
+        latest_date = ""
+
+        for s in shifts:
+            if not s.get("title") or s["title"] in ganztag:
+                continue
+            if not s.get("start") or not s.get("end"):
+                continue
+
+            start_dt = as_datetime(s["start"])
+            end_dt   = as_datetime(s["end"])
+            minutes  = int((end_dt - start_dt).total_seconds() / 60)
+            start_time = start_dt.strftime("%H:%M")
+            end_time   = end_dt.strftime("%H:%M")
+            date_str   = start_dt.strftime("%d.%m.%Y")
+
+            if minutes > longest_minutes:
+                longest_minutes = minutes
+                longest_dienst  = s["title"]
+                longest_date    = date_str
+
+            if start_time < earliest_start:
+                earliest_start = start_time
+                earliest_date  = date_str
+
+            if end_time > latest_end:
+                latest_end  = end_time
+                latest_date = date_str
+
+        return {
+            "laengster_dienst_min":  longest_minutes,
+            "laengster_dienst_h":    round(longest_minutes / 60, 1),
+            "laengster_dienst_name": longest_dienst,
+            "laengster_dienst_datum": longest_date,
+            "fruehester_start":      earliest_start,
+            "fruehester_start_datum": earliest_date,
+            "spaetestes_ende":       latest_end,
+            "spaetestes_ende_datum": latest_date,
+        }
 
 
 class PerdisMonthlySummarySensor(CoordinatorEntity, SensorEntity):

@@ -44,6 +44,7 @@ class PerdisCoordinator(DataUpdateCoordinator):
         self.messages_url  = f"{self.base_url}/messages.aspx"
         self.shift_url     = f"{self.base_url}/shift.aspx"
         self.auction_url   = f"{self.base_url}/dutyauction.aspx"
+        self.absences_url  = f"{self.base_url}/absences.aspx"
 
         super().__init__(
             hass,
@@ -99,7 +100,10 @@ class PerdisCoordinator(DataUpdateCoordinator):
         # Dienstversteigerung laden
         auction = self._fetch_auction(session)
 
-        return {"shifts": unique, "balances": balances, "message": message, "shift_detail": shift_detail, "auction": auction}
+        # Jahresübersicht laden
+        absences = self._fetch_absences(session)
+
+        return {"shifts": unique, "balances": balances, "message": message, "shift_detail": shift_detail, "auction": auction, "absences": absences}
 
     def _login(self, session: requests.Session) -> None:
         """ASP.NET Login mit Cookie-Redirect-Flow."""
@@ -199,6 +203,72 @@ class PerdisCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Perdis: Fehler beim Laden der Balances: %s", err)
 
         return balances
+
+    def _fetch_absences(self, session) -> dict:
+        """Lädt die Jahresübersicht von absences.aspx."""
+        result = {
+            "year": datetime.now().year,
+            "summary": [],
+            "counts": {},
+            "records": {},
+        }
+        try:
+            r = session.get(self.absences_url, headers=HEADERS, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+
+            # Abwesenheitstabelle parsen
+            summary = []
+            abs_table = soup.find("table", id=re.compile("lstAbsences"))
+            if abs_table:
+                for tr in abs_table.find("tbody").find_all("tr"):
+                    cells = [td.get_text(strip=True) for td in tr.find_all("td")]
+                    if len(cells) >= 2:
+                        summary.append({"tage": cells[0], "typ": cells[1]})
+
+            # Jahresmatrix parsen
+            counts = {
+                "urlaub": 0,
+                "krank": 0,
+                "arbeitsbefreiung": 0,
+                "freizeitausgleich": 0,
+                "streik": 0,
+                "frei_mehrl": 0,
+                "ueberstunden_abbau": 0,
+            }
+
+            matrix_table = soup.find("table", id=re.compile("frmYearView"))
+            if matrix_table:
+                months = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]
+                for tr in matrix_table.find_all("tr"):
+                    th = tr.find("th")
+                    if not th or th.get_text(strip=True) not in months:
+                        continue
+                    for td in tr.find_all("td"):
+                        text = td.get_text(strip=True)
+                        if not text:
+                            continue
+                        if text == "U" or text == "UF":
+                            counts["urlaub"] += 1
+                        elif text in ["K", "KOS"]:
+                            counts["krank"] += 1
+                        elif text == "AB":
+                            counts["arbeitsbefreiung"] += 1
+                        elif text == "FM":
+                            counts["freizeitausgleich"] += 1
+                        elif text == "STR":
+                            counts["streik"] += 1
+                        elif text == "FA":
+                            counts["ueberstunden_abbau"] += 1
+
+            result["summary"] = summary
+            result["counts"]  = counts
+
+            _LOGGER.info("Perdis Jahresübersicht geladen: %s", counts)
+
+        except Exception as err:
+            _LOGGER.warning("Perdis: Fehler beim Laden der Jahresübersicht: %s", err)
+
+        return result
 
     def _fetch_auction(self, session) -> dict:
         """Lädt die Dienstversteigerung von dutyauction.aspx."""

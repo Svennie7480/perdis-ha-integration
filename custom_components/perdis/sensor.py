@@ -128,6 +128,7 @@ class PerdisAbsencesSensor(CoordinatorEntity, SensorEntity):
         return {
             "year":               absences.get("year", ""),
             "urlaub_tage":        counts.get("urlaub", 0),
+            "urlaub_genommen":    counts.get("urlaub_genommen", 0),
             "krank_tage":         counts.get("krank", 0),
             "arbeitsbefreiung":   counts.get("arbeitsbefreiung", 0),
             "freizeitausgleich":  counts.get("freizeitausgleich", 0),

@@ -233,6 +233,7 @@ class PerdisCoordinator(DataUpdateCoordinator):
             # Jahresmatrix parsen
             counts = {
                 "urlaub": 0,
+                "urlaub_genommen": 0,
                 "krank": 0,
                 "arbeitsbefreiung": 0,
                 "freizeitausgleich": 0,
@@ -245,16 +246,27 @@ class PerdisCoordinator(DataUpdateCoordinator):
             matrix_table = soup.find("table", id=re.compile("frmYearView"))
             if matrix_table:
                 months = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"]
+                now_month_idx = datetime.now().month - 1  # 0-basiert
+                urlaub_genommen = 0
+
                 for tr in matrix_table.find_all("tr"):
                     th = tr.find("th")
                     if not th or th.get_text(strip=True) not in months:
                         continue
-                    for td in tr.find_all("td"):
+                    month_idx = months.index(th.get_text(strip=True))
+                    is_past = month_idx < now_month_idx
+                    is_current = month_idx == now_month_idx
+                    today_day = datetime.now().day
+
+                    for day_idx, td in enumerate(tr.find_all("td"), start=1):
                         text = td.get_text(strip=True)
                         if not text:
                             continue
                         if text == "U" or text == "UF":
                             counts["urlaub"] += 1
+                            # Genommene Urlaubstage: vergangene Monate komplett + aktueller Monat bis heute
+                            if is_past or (is_current and day_idx <= today_day):
+                                urlaub_genommen += 1
                         elif text in ["K", "KOS"]:
                             counts["krank"] += 1
                         elif text == "AB":
@@ -267,6 +279,8 @@ class PerdisCoordinator(DataUpdateCoordinator):
                             counts["ueberstunden_abbau"] += 1
                         elif text == "ET":
                             counts["entlastungstage"] += 1
+
+                counts["urlaub_genommen"] = urlaub_genommen
 
             result["summary"] = summary
             result["counts"]  = counts

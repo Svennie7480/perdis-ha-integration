@@ -571,6 +571,16 @@ class PerdisCoordinator(DataUpdateCoordinator):
             start_str = time_match.group(1)
             end_str   = time_match.group(2)
 
+            # Stunden > 23 behandeln (z.B. 27:00 = nächster Tag 03:00)
+            def parse_time_str(t):
+                h, m = map(int, t.split(":"))
+                extra_days = h // 24
+                h = h % 24
+                return f"{h:02d}:{m:02d}", extra_days
+
+            start_str, _ = parse_time_str(start_str)
+            end_str, end_extra = parse_time_str(end_str)
+
             loc_match   = re.search(r"Anfangsort:\s*(.+?)\s*•", title_attr)
             location    = loc_match.group(1).strip() if loc_match else ""
 
@@ -579,7 +589,7 @@ class PerdisCoordinator(DataUpdateCoordinator):
 
             dt_start = datetime.combine(day, datetime.strptime(start_str, "%H:%M").time())
             dt_end   = datetime.combine(day, datetime.strptime(end_str,   "%H:%M").time())
-            if dt_end <= dt_start:
+            if dt_end <= dt_start or end_extra > 0:
                 dt_end += timedelta(days=1)
 
             summary = dienst_name

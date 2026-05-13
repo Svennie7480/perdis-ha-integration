@@ -89,7 +89,90 @@ async def async_setup_entry(
     # Versteigerungs-Sensor
     entities.append(PerdisAuctionSensor(coordinator, entry))
 
+    # Monatszusammenfassung
+    entities.append(PerdisMonthlySummarySensor(coordinator, entry))
+
     async_add_entities(entities)
+
+
+class PerdisMonthlySummarySensor(CoordinatorEntity, SensorEntity):
+    """Sensor für die monatliche Zusammenfassung."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Monatsübersicht"
+    _attr_icon = "mdi:calendar-month"
+
+    def __init__(self, coordinator: PerdisCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_monthly_summary"
+
+    @property
+    def native_value(self):
+        if not self.coordinator.data:
+            return None
+        shifts = self.coordinator.data.get("shifts", [])
+        now = datetime.now()
+        month_shifts = [
+            s for s in shifts
+            if s.get("start") and as_datetime(s["start"]).month == now.month
+            and as_datetime(s["start"]).year == now.year
+            and s.get("type") == "work"
+        ]
+        return len(month_shifts)
+
+    @property
+    def extra_state_attributes(self):
+        if not self.coordinator.data:
+            return {}
+        shifts = self.coordinator.data.get("shifts", [])
+        now = datetime.now()
+
+        # Dienste diesen Monat
+        month_shifts = []
+        ganztag = ["Urlaub","Frei","Arbeitsbefreiung","Freizeitausgleich",
+                   "Überstunden","Krank ohne Schein","Streik"]
+
+        total_minutes = 0
+        dienst_count = 0
+        frueh_count = 0   # Dienste die vor 09:00 beginnen
+        spaet_count = 0   # Dienste die nach 18:00 enden
+        nacht_count = 0   # Dienste die nach 22:00 enden
+
+        for s in shifts:
+            if not s.get("start"):
+                continue
+            start_dt = as_datetime(s["start"])
+            if start_dt.month != now.month or start_dt.year != now.year:
+                continue
+            title = s.get("title", "")
+            if title in ganztag:
+                continue
+
+            end_dt = as_datetime(s["end"]) if s.get("end") else None
+            dienst_count += 1
+
+            if end_dt:
+                minutes = int((end_dt - start_dt).total_seconds() / 60)
+                total_minutes += minutes
+                if end_dt.hour >= 22:
+                    nacht_count += 1
+                elif end_dt.hour >= 18:
+                    spaet_count += 1
+
+            if start_dt.hour < 9:
+                frueh_count += 1
+
+        avg_minutes = int(total_minutes / dienst_count) if dienst_count > 0 else 0
+
+        return {
+            "dienste_gesamt":  dienst_count,
+            "stunden_gesamt":  round(total_minutes / 60, 1),
+            "durchschnitt_h":  round(avg_minutes / 60, 1),
+            "fruehschichten":  frueh_count,
+            "spaetschichten":  spaet_count,
+            "nachtschichten":  nacht_count,
+            "monat":           now.strftime("%B %Y"),
+        }
 
 
 class PerdisAuctionSensor(CoordinatorEntity, SensorEntity):

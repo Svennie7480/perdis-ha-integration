@@ -70,9 +70,13 @@ class PerdisCoordinator(DataUpdateCoordinator):
 
         all_shifts = []
         now = datetime.now()
-        for i in range(3):
-            month = (now.month - 1 + i) % 12 + 1
-            year  = now.year + (now.month - 1 + i) // 12
+        # Von Januar des aktuellen Jahres bis 2 Monate voraus laden
+        start_month = 1
+        start_year  = now.year
+        total_months = (now.month - 1) + 3  # Jan bis aktuell + 2 Folgemonate
+        for i in range(total_months):
+            month = (start_month - 1 + i) % 12 + 1
+            year  = start_year + (start_month - 1 + i) // 12
             shifts = self._fetch_month(session, year, month)
             all_shifts.extend(shifts)
 

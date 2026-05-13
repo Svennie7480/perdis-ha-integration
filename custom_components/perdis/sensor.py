@@ -83,7 +83,48 @@ async def async_setup_entry(
     entities.append(PerdisMessageSensor(coordinator, entry, "betreff", "Letzte Nachricht Betreff"))
     entities.append(PerdisMessageSensor(coordinator, entry, "total",   "Nachrichten Anzahl"))
 
+    # Dienstdetail-Sensor
+    entities.append(PerdisShiftDetailSensor(coordinator, entry))
+
     async_add_entities(entities)
+
+
+class PerdisShiftDetailSensor(CoordinatorEntity, SensorEntity):
+    """Sensor für die Dienstdetails des aktuellen Tages."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:bus-clock"
+    _attr_name = "Dienstdetail Heute"
+
+    def __init__(self, coordinator: PerdisCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_shift_detail"
+
+    @property
+    def native_value(self):
+        if not self.coordinator.data:
+            return None
+        detail = self.coordinator.data.get("shift_detail", {})
+        linien = detail.get("linien", [])
+        if not linien:
+            return "Kein Dienst"
+        return f"Linien: {', '.join(linien)}"
+
+    @property
+    def extra_state_attributes(self):
+        if not self.coordinator.data:
+            return {}
+        detail = self.coordinator.data.get("shift_detail", {})
+        return {
+            "date":             detail.get("date", ""),
+            "start_ort":        detail.get("start_ort", ""),
+            "end_ort":          detail.get("end_ort", ""),
+            "linien":           detail.get("linien", []),
+            "wende_total_min":  detail.get("wende_total", 0),
+            "pause_bezahlt_min":   detail.get("pause_bezahlt", 0),
+            "pause_unbezahlt_min": detail.get("pause_unbezahlt", 0),
+            "rows":             detail.get("rows", []),
+        }
 
 
 class PerdisSensor(CoordinatorEntity, SensorEntity):

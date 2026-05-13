@@ -33,14 +33,16 @@ GANZTAG = {
 class PerdisCoordinator(DataUpdateCoordinator):
     """Koordiniert das tägliche Abrufen des Perdis Dienstplans."""
 
-    def __init__(self, hass: HomeAssistant, base_url: str, username: str, password: str) -> None:
+    def __init__(self, hass: HomeAssistant, base_url: str, username: str, password: str, locations: dict = None) -> None:
         self.base_url    = base_url.rstrip("/")
+        self.locations   = locations or {}  # z.B. {'BTH': 'Betriebshof', 'ZOB': 'Zentraler Omnibusbahnhof'}
         self.username    = username
         self.password    = password
         self.roster_url  = f"{self.base_url}/roster.aspx"
         self.planbals_url  = f"{self.base_url}/planbals.aspx"
         self.balances_url  = f"{self.base_url}/balances.aspx"
         self.messages_url  = f"{self.base_url}/messages.aspx"
+        self.shift_url     = f"{self.base_url}/shift.aspx"
 
         super().__init__(
             hass,
@@ -89,7 +91,11 @@ class PerdisCoordinator(DataUpdateCoordinator):
         # Nachrichten laden
         message = self._fetch_latest_message(session)
 
-        return {"shifts": unique, "balances": balances, "message": message}
+        # Dienstdetails für heute laden
+        today = datetime.now().strftime("%Y-%m-%d")
+        shift_detail = self._fetch_shift_detail(session, today)
+
+        return {"shifts": unique, "balances": balances, "message": message, "shift_detail": shift_detail}
 
     def _login(self, session: requests.Session) -> None:
         """ASP.NET Login mit Cookie-Redirect-Flow."""
@@ -189,6 +195,128 @@ class PerdisCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Perdis: Fehler beim Laden der Balances: %s", err)
 
         return balances
+
+    def _fetch_shift_detail(self, session, date_str: str) -> dict:
+        """Lädt die Dienstdetails für ein bestimmtes Datum von shift.aspx."""
+        result = {
+            "date": date_str,
+            "rows": [],
+            "wende_total": 0,
+            "pause_bezahlt": 0,
+            "pause_unbezahlt": 0,
+            "linien": [],
+            "start_ort": "",
+            "end_ort": "",
+        }
+        try:
+            url = f"{self.shift_url}?{date_str}"
+            r = session.get(url, headers=HEADERS, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+
+            table = soup.find("table", id=re.compile("lstDienstinfo"))
+            if not table:
+                return result
+
+            rows = []
+            linien = set()
+            wende_minutes = 0
+            pause_bezahlt_minutes = 0
+            pause_unbezahlt_minutes = 0
+            start_ort = ""
+            end_ort = ""
+            first_row = True
+
+            for tr in table.find("tbody").find_all("tr"):
+                cells = [td.get_text(strip=True) for td in tr.find_all("td")]
+                if len(cells) < 10:
+                    continue
+
+                dienst      = cells[0]
+                von         = cells[1]
+                von_ort     = cells[2]
+                bis         = cells[3]
+                bis_ort     = cells[4]
+                linie       = cells[6]
+                beschreibung = cells[9]
+
+                # Erster Ort = Startort
+                if first_row:
+                    start_ort = von_ort
+                    first_row = False
+                end_ort = bis_ort
+
+                # Linie sammeln
+                if linie and linie != " ":
+                    linien.add(linie)
+
+                # Typ bestimmen
+                row_type = "normal"
+                minutes = self._time_diff_minutes(von, bis)
+
+                if beschreibung == "Wenden":
+                    row_type = "wenden"
+                    wende_minutes += minutes
+                elif beschreibung == "Bezahlte Pause":
+                    row_type = "pause_bezahlt"
+                    pause_bezahlt_minutes += minutes
+                elif beschreibung == "Unbezahlte Pause":
+                    row_type = "pause_unbezahlt"
+                    pause_unbezahlt_minutes += minutes
+
+                # Ort-Labels aus locations config
+                von_label = self._ort_label(von_ort)
+                bis_label = self._ort_label(bis_ort)
+
+                rows.append({
+                    "dienst": dienst,
+                    "von": von,
+                    "von_ort": von_ort,
+                    "von_label": von_label,
+                    "bis": bis,
+                    "bis_ort": bis_ort,
+                    "bis_label": bis_label,
+                    "linie": linie,
+                    "beschreibung": beschreibung,
+                    "type": row_type,
+                    "minutes": minutes,
+                })
+
+            result["rows"]             = rows
+            result["wende_total"]      = wende_minutes
+            result["pause_bezahlt"]    = pause_bezahlt_minutes
+            result["pause_unbezahlt"]  = pause_unbezahlt_minutes
+            result["linien"]           = sorted(list(linien))
+            result["start_ort"]        = start_ort
+            result["end_ort"]          = end_ort
+
+            _LOGGER.info(
+                "Perdis Dienstdetail %s: %d Zeilen, Wenden=%dmin, Pause=%dmin",
+                date_str, len(rows), wende_minutes, pause_bezahlt_minutes + pause_unbezahlt_minutes
+            )
+
+        except Exception as err:
+            _LOGGER.warning("Perdis: Fehler beim Laden der Dienstdetails: %s", err)
+
+        return result
+
+    def _ort_label(self, ort: str) -> str:
+        """Gibt den Klarnamen eines Ortes zurück falls konfiguriert."""
+        if not ort or ort == " ":
+            return ort
+        # Kürzel extrahieren (ohne Bussteig-Nummer und E/A Suffix)
+        base = ort.rstrip("0123456789")
+        if base.endswith("E") or base.endswith("A"):
+            base = base[:-1]
+        return self.locations.get(base, ort)
+
+    def _time_diff_minutes(self, von: str, bis: str) -> int:
+        """Berechnet die Differenz in Minuten zwischen zwei Zeitangaben."""
+        try:
+            h1, m1 = map(int, von.split(":"))
+            h2, m2 = map(int, bis.split(":"))
+            return max(0, (h2 * 60 + m2) - (h1 * 60 + m1))
+        except Exception:
+            return 0
 
     def _fetch_latest_message(self, session: requests.Session) -> dict:
         """Liest die neueste Nachricht von messages.aspx."""

@@ -145,9 +145,6 @@ class PerdisConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class PerdisOptionsFlow(config_entries.OptionsFlow):
     """Options Flow – Einstellungen nachträglich ändern."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
-
     async def async_step_init(self, user_input=None) -> FlowResult:
         """Einstellungen anzeigen und speichern."""
         if user_input is not None:

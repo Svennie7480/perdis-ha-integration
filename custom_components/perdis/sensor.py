@@ -86,7 +86,50 @@ async def async_setup_entry(
     # Dienstdetail-Sensor
     entities.append(PerdisShiftDetailSensor(coordinator, entry))
 
+    # Versteigerungs-Sensor
+    entities.append(PerdisAuctionSensor(coordinator, entry))
+
     async_add_entities(entities)
+
+
+class PerdisAuctionSensor(CoordinatorEntity, SensorEntity):
+    """Sensor für die Dienstversteigerung."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Dienstversteigerung"
+
+    def __init__(self, coordinator: PerdisCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_auction"
+        self._prev_has_leitstelle = False
+
+    @property
+    def icon(self):
+        auction = (self.coordinator.data or {}).get("auction", {})
+        if auction.get("has_leitstelle"):
+            return "mdi:alert-decagram"
+        return "mdi:gavel"
+
+    @property
+    def native_value(self):
+        auction = (self.coordinator.data or {}).get("auction", {})
+        total = auction.get("total", 0)
+        leitstelle = len(auction.get("leitstelle_items", []))
+        if total == 0:
+            return "Keine Dienste"
+        if leitstelle > 0:
+            return f"⚠️ {leitstelle} Leitstelle | {total} gesamt"
+        return f"{total} Dienste verfügbar"
+
+    @property
+    def extra_state_attributes(self):
+        auction = (self.coordinator.data or {}).get("auction", {})
+        return {
+            "items":            auction.get("items", []),
+            "has_leitstelle":   auction.get("has_leitstelle", False),
+            "leitstelle_items": auction.get("leitstelle_items", []),
+            "total":            auction.get("total", 0),
+        }
 
 
 class PerdisShiftDetailSensor(CoordinatorEntity, SensorEntity):

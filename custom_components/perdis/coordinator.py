@@ -43,6 +43,7 @@ class PerdisCoordinator(DataUpdateCoordinator):
         self.balances_url  = f"{self.base_url}/balances.aspx"
         self.messages_url  = f"{self.base_url}/messages.aspx"
         self.shift_url     = f"{self.base_url}/shift.aspx"
+        self.auction_url   = f"{self.base_url}/dutyauction.aspx"
 
         super().__init__(
             hass,
@@ -95,7 +96,10 @@ class PerdisCoordinator(DataUpdateCoordinator):
         today = datetime.now().strftime("%Y-%m-%d")
         shift_detail = self._fetch_shift_detail(session, today)
 
-        return {"shifts": unique, "balances": balances, "message": message, "shift_detail": shift_detail}
+        # Dienstversteigerung laden
+        auction = self._fetch_auction(session)
+
+        return {"shifts": unique, "balances": balances, "message": message, "shift_detail": shift_detail, "auction": auction}
 
     def _login(self, session: requests.Session) -> None:
         """ASP.NET Login mit Cookie-Redirect-Flow."""
@@ -195,6 +199,78 @@ class PerdisCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Perdis: Fehler beim Laden der Balances: %s", err)
 
         return balances
+
+    def _fetch_auction(self, session) -> dict:
+        """Lädt die Dienstversteigerung von dutyauction.aspx."""
+        result = {
+            "items": [],
+            "has_leitstelle": False,
+            "leitstelle_items": [],
+            "total": 0,
+        }
+        try:
+            r = session.get(self.auction_url, headers=HEADERS, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+
+            table = soup.find("table", id=re.compile("lstDienstversteigerung"))
+            if not table:
+                return result
+
+            items = []
+            for tr in table.find("tbody").find_all("tr"):
+                cells = [td.get_text(strip=True) for td in tr.find_all("td")]
+                if len(cells) < 9:
+                    continue
+
+                betriebstag  = cells[0]
+                dienst       = cells[1]
+                dienstzeit   = cells[2]
+                anfangsort   = cells[3]
+                endort       = cells[4]
+                dienstdauer  = cells[5]
+                lohndauer    = cells[6]
+                dienstart    = cells[7]
+                ablauf       = cells[8]
+
+                # Typ bestimmen
+                num = -1
+                try:
+                    num = int(dienst)
+                except ValueError:
+                    pass
+
+                is_leitstelle = (800 <= num <= 899) or "leitstelle" in dienst.lower()
+                item_type = "leitstelle" if is_leitstelle else "bus"
+
+                items.append({
+                    "betriebstag": betriebstag,
+                    "dienst":      dienst,
+                    "dienstzeit":  dienstzeit,
+                    "anfangsort":  anfangsort,
+                    "endort":      endort,
+                    "dienstdauer": dienstdauer,
+                    "lohndauer":   lohndauer,
+                    "dienstart":   dienstart,
+                    "ablauf":      ablauf,
+                    "type":        item_type,
+                })
+
+            leitstelle_items = [i for i in items if i["type"] == "leitstelle"]
+
+            result["items"]            = items
+            result["has_leitstelle"]   = len(leitstelle_items) > 0
+            result["leitstelle_items"] = leitstelle_items
+            result["total"]            = len(items)
+
+            _LOGGER.info(
+                "Perdis Versteigerung: %d Dienste, %d Leitstellen-Dienste",
+                len(items), len(leitstelle_items)
+            )
+
+        except Exception as err:
+            _LOGGER.warning("Perdis: Fehler beim Laden der Versteigerung: %s", err)
+
+        return result
 
     def _fetch_shift_detail(self, session, date_str: str) -> dict:
         """Lädt die Dienstdetails für ein bestimmtes Datum von shift.aspx."""

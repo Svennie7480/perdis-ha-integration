@@ -235,6 +235,8 @@ class PerdisCoordinator(DataUpdateCoordinator):
                 "urlaub": 0,
                 "urlaub_genommen": 0,
                 "krank": 0,
+                "krank_mit_schein": 0,
+                "krank_ohne_schein": 0,
                 "arbeitsbefreiung": 0,
                 "freizeitausgleich": 0,
                 "streik": 0,
@@ -267,8 +269,12 @@ class PerdisCoordinator(DataUpdateCoordinator):
                             # Genommene Urlaubstage: vergangene Monate komplett + aktueller Monat bis heute
                             if is_past or (is_current and day_idx <= today_day):
                                 urlaub_genommen += 1
-                        elif text in ["K", "KOS"]:
+                        elif text == "K":
                             counts["krank"] += 1
+                            counts["krank_mit_schein"] += 1
+                        elif text == "KOS":
+                            counts["krank"] += 1
+                            counts["krank_ohne_schein"] += 1
                         elif text == "AB":
                             counts["arbeitsbefreiung"] += 1
                         elif text == "FM":

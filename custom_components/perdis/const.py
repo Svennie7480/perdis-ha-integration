@@ -14,5 +14,5 @@ CONF_LOCATIONS   = "locations"  # Dict mit Ort-Kürzeln: {'BTH': 'Betriebshof', 
 
 GANZTAG_TITLES = [
     "Urlaub", "Frei", "Arbeitsbefreiung", "Freizeitausgleich",
-    "Überstunden", "Krank ohne Schein", "Streik"
+    "Überstunden", "Krank ohne Schein", "Streik", "Entlastungstag"
 ]

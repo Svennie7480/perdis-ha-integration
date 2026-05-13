@@ -133,6 +133,7 @@ class PerdisAbsencesSensor(CoordinatorEntity, SensorEntity):
             "freizeitausgleich":  counts.get("freizeitausgleich", 0),
             "streik_tage":        counts.get("streik", 0),
             "ueberstunden_abbau": counts.get("ueberstunden_abbau", 0),
+            "entlastungstage":    counts.get("entlastungstage", 0),
             "summary":            absences.get("summary", []),
         }
 

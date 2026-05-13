@@ -27,6 +27,7 @@ GANZTAG = {
     "FA":  "Überstunden",
     "KOS": "Krank ohne Schein",
     "STR": "Streik",
+    "ET":  "Entlastungstag",
 }
 
 
@@ -238,6 +239,7 @@ class PerdisCoordinator(DataUpdateCoordinator):
                 "streik": 0,
                 "frei_mehrl": 0,
                 "ueberstunden_abbau": 0,
+                "entlastungstage": 0,
             }
 
             matrix_table = soup.find("table", id=re.compile("frmYearView"))
@@ -263,6 +265,8 @@ class PerdisCoordinator(DataUpdateCoordinator):
                             counts["streik"] += 1
                         elif text == "FA":
                             counts["ueberstunden_abbau"] += 1
+                        elif text == "ET":
+                            counts["entlastungstage"] += 1
 
             result["summary"] = summary
             result["counts"]  = counts

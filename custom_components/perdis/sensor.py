@@ -179,8 +179,11 @@ class PerdisRecordsSensor(CoordinatorEntity, SensorEntity):
             if not s.get("start") or not s.get("end"):
                 continue
 
-            start_dt = as_datetime(s["start"])
-            end_dt   = as_datetime(s["end"])
+            try:
+                start_dt = datetime.fromisoformat(str(s["start"]))
+                end_dt   = datetime.fromisoformat(str(s["end"]))
+            except Exception:
+                continue
             minutes  = int((end_dt - start_dt).total_seconds() / 60)
             start_time = start_dt.strftime("%H:%M")
             end_time   = end_dt.strftime("%H:%M")
@@ -228,12 +231,16 @@ class PerdisMonthlySummarySensor(CoordinatorEntity, SensorEntity):
             return None
         shifts = self.coordinator.data.get("shifts", [])
         now = datetime.now()
-        month_shifts = [
-            s for s in shifts
-            if s.get("start") and as_datetime(s["start"]).month == now.month
-            and as_datetime(s["start"]).year == now.year
-            and s.get("type") == "work"
-        ]
+        month_shifts = []
+        for s in shifts:
+            if not s.get("start"):
+                continue
+            try:
+                dt = datetime.fromisoformat(str(s["start"]))
+                if dt.month == now.month and dt.year == now.year and s.get("type") == "work":
+                    month_shifts.append(s)
+            except Exception:
+                pass
         return len(month_shifts)
 
     @property

@@ -97,7 +97,89 @@ async def async_setup_entry(
     entities.append(PerdisAbsencesSensor(coordinator, entry))
     entities.append(PerdisRecordsSensor(coordinator, entry))
 
+    # Nächster Dienst Sensor
+    entities.append(PerdisNextShiftSensor(coordinator, entry))
+
     async_add_entities(entities)
+
+
+class PerdisNextShiftSensor(CoordinatorEntity, SensorEntity):
+    """Sensor für den nächsten kommenden Dienst."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Nächster Dienst"
+    _attr_icon = "mdi:bus-clock"
+
+    def __init__(self, coordinator: PerdisCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_next_shift"
+
+    def _get_next_shift(self):
+        if not self.coordinator.data:
+            return None
+        shifts = self.coordinator.data.get("shifts", [])
+        ganztag = ["Urlaub","Frei","Arbeitsbefreiung","Freizeitausgleich",
+                   "Überstunden","Krank ohne Schein","Streik","Entlastungstag"]
+        now = datetime.now()
+        next_shift = None
+        for s in shifts:
+            if s.get("allday", False):
+                continue
+            title = s.get("title", "")
+            if any(g in title for g in ganztag):
+                continue
+            if not s.get("start"):
+                continue
+            try:
+                start_dt = s["start"] if isinstance(s["start"], datetime) else datetime.fromisoformat(str(s["start"]))
+            except Exception:
+                continue
+            if start_dt <= now:
+                continue
+            if next_shift is None or start_dt < next_shift["start_dt"]:
+                next_shift = {**s, "start_dt": start_dt}
+        return next_shift
+
+    @property
+    def native_value(self):
+        ns = self._get_next_shift()
+        if not ns:
+            return "Kein Dienst geplant"
+        return ns.get("title", "")
+
+    @property
+    def extra_state_attributes(self):
+        ns = self._get_next_shift()
+        if not ns:
+            return {}
+        try:
+            start_dt = ns["start_dt"]
+            end_dt = ns["end"] if isinstance(ns["end"], datetime) else datetime.fromisoformat(str(ns["end"]))
+            minutes = int((end_dt - start_dt).total_seconds() / 60)
+            now = datetime.now()
+            diff = start_dt - now
+            days = diff.days
+            hours = diff.seconds // 3600
+            mins = (diff.seconds % 3600) // 60
+            if days > 0:
+                in_text = f"in {days} Tag{'en' if days > 1 else ''}"
+            elif hours > 0:
+                in_text = f"in {hours}h {mins}min"
+            else:
+                in_text = f"in {mins} Minuten"
+            return {
+                "title":      ns.get("title", ""),
+                "start":      start_dt.strftime("%Y-%m-%d %H:%M"),
+                "end":        end_dt.strftime("%Y-%m-%d %H:%M"),
+                "start_time": start_dt.strftime("%H:%M"),
+                "end_time":   end_dt.strftime("%H:%M"),
+                "date":       start_dt.strftime("%A, %d.%m.%Y"),
+                "in":         in_text,
+                "duration_min": minutes,
+                "duration_h": round(minutes / 60, 1),
+            }
+        except Exception:
+            return {}
 
 
 class PerdisAbsencesSensor(CoordinatorEntity, SensorEntity):

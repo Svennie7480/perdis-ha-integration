@@ -26,6 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     await coordinator.async_config_entry_first_refresh()
+    await async_setup_services(hass)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
@@ -40,6 +41,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Integration neu laden wenn Einstellungen geändert werden."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_setup_services(hass: HomeAssistant) -> None:
+    """Registriert Perdis Services."""
+
+    async def handle_accept_auction(call):
+        dienst_id = call.data.get("dienst_id")
+        action = call.data.get("action", "accept_time")
+        for entry_id, coordinator in hass.data[DOMAIN].items():
+            result = await hass.async_add_executor_job(
+                coordinator.accept_auction, dienst_id, action
+            )
+            _LOGGER.info("Perdis accept_auction %s %s → %s", dienst_id, action, result)
+            await coordinator.async_request_refresh()
+
+    hass.services.async_register(DOMAIN, "accept_auction", handle_accept_auction)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -209,6 +209,47 @@ class PerdisCoordinator(DataUpdateCoordinator):
 
         return balances
 
+    def accept_auction(self, dienst_id: str, action: str) -> bool:
+        """Ersteigert einen Dienst. action = 'accept_money' oder 'accept_time'."""
+        try:
+            session = requests.Session()
+            self._login(session)
+
+            # Seite laden um VIEWSTATE zu bekommen
+            r = session.get(self.auction_url, headers=HEADERS, timeout=15)
+            soup = BeautifulSoup(r.text, "html.parser")
+
+            viewstate = soup.find("input", {"id": "__VIEWSTATE"})
+            viewstategen = soup.find("input", {"id": "__VIEWSTATEGENERATOR"})
+            eventval = soup.find("input", {"id": "__EVENTVALIDATION"})
+            hdn_object = soup.find("input", {"id": "ctl00_cntMainBody_hdnObject"})
+            hdn_action_field = soup.find("input", {"id": "ctl00_cntMainBody_HdnAction"})
+
+            if not viewstate:
+                _LOGGER.error("Perdis accept_auction: VIEWSTATE nicht gefunden")
+                return False
+
+            data = {
+                "__VIEWSTATE": viewstate.get("value", ""),
+                "__VIEWSTATEGENERATOR": viewstategen.get("value", "") if viewstategen else "",
+                "__EVENTVALIDATION": eventval.get("value", "") if eventval else "",
+                "ctl00$cntMainBody$HdnAction": action,
+                "ctl00$cntMainBody$hdnObject": dienst_id,
+                "list": dienst_id,
+            }
+
+            r2 = session.post(self.auction_url, data=data, headers=HEADERS, timeout=15)
+            _LOGGER.info("Perdis accept_auction: %s Dienst %s → Status %s", action, dienst_id, r2.status_code)
+            return r2.status_code == 200
+
+        except Exception as err:
+            _LOGGER.error("Perdis accept_auction Fehler: %s", err)
+            return False
+
+    def reject_auction(self, dienst_id: str) -> bool:
+        """Lehnt einen Dienst ab."""
+        return self.accept_auction(dienst_id, "reject")
+
     def _fetch_absences(self, session) -> dict:
         """Lädt die Jahresübersicht von absences.aspx."""
         result = {
@@ -344,6 +385,10 @@ class PerdisCoordinator(DataUpdateCoordinator):
                 is_leitstelle = (800 <= num <= 899) or "leitstelle" in dienst.lower()
                 item_type = "leitstelle" if is_leitstelle else "bus"
 
+                # Radio-Button ID extrahieren
+                radio = row.find("input", {"type": "radio"})
+                radio_id = radio.get("id", "") if radio else ""
+
                 items.append({
                     "betriebstag": betriebstag,
                     "dienst":      dienst,
@@ -355,6 +400,7 @@ class PerdisCoordinator(DataUpdateCoordinator):
                     "dienstart":   dienstart,
                     "ablauf":      ablauf,
                     "type":        item_type,
+                    "id":          radio_id,
                 })
 
             leitstelle_items = [i for i in items if i["type"] == "leitstelle"]
